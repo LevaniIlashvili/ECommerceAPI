@@ -1,0 +1,26 @@
+# Build directories
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
+
+# VSCode directories
+.vscode/
+.vs/
+
+# Rider directories
+.idea/
+
+# ASP.NET Core specific
+appsettings.Development.json
+appsettings.json
