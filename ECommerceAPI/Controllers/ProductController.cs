@@ -10,10 +10,12 @@ namespace ECommerceAPI.Controllers
     public class ProductController : ControllerBase
     {
         private readonly IProductRepository _productRepository;
+        private readonly ICategoryRepository _categoryRepository;
 
-        public ProductController(IProductRepository productRepository)
+        public ProductController(IProductRepository productRepository, ICategoryRepository categoryRepository)
         {
             _productRepository = productRepository;
+            _categoryRepository = categoryRepository;
         }
 
         [HttpGet]
@@ -22,7 +24,20 @@ namespace ECommerceAPI.Controllers
             try
             {
                 var products = await _productRepository.GetProducts();
-                return Ok(products);
+                var productDtos = products.Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Stock = p.Stock,
+                    Category = new Category
+                    {
+                        Id = p.Category!.Id,
+                        Name = p.Category.Name
+                    }
+                });
+                return Ok(productDtos);
             }
             catch (Exception)
             {
@@ -41,7 +56,20 @@ namespace ECommerceAPI.Controllers
                 {
                     return NotFound(new { Message = $"Product with Id = {id} not found" });
                 }
-                return Ok(product);
+                var productDto = new ProductDto
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    Price = product.Price,
+                    Stock = product.Stock,
+                    Category = new Category
+                    {
+                        Id = product.Category!.Id,
+                        Name = product.Category.Name
+                    }
+                };
+                return Ok(productDto);
             }
             catch (Exception)
             {
@@ -55,13 +83,18 @@ namespace ECommerceAPI.Controllers
         {
             try
             {
+                var category = await _categoryRepository.GetCategory(product.CategoryId);
+                if (category == null)
+                {
+                    return BadRequest("Invalid CategoryId. The specified category does not exist.");
+                }
                 await _productRepository.AddProduct(product);
                 return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
             }
             catch (Exception)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while adding the product.");
+                    $"An error occurred while adding the product.");
             }
         }
 
@@ -73,6 +106,12 @@ namespace ECommerceAPI.Controllers
                 if (id != updatedProduct.Id)
                 {
                     return BadRequest("Product ID mismatch");
+                }
+
+                var category = await _categoryRepository.GetCategory(updatedProduct.CategoryId);
+                if (category == null)
+                {
+                    return BadRequest("Invalid CategoryId. The specified category does not exist.");
                 }
 
                 var existingProduct = await _productRepository.GetProduct(id);
