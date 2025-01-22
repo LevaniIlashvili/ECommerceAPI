@@ -7,8 +7,8 @@ namespace ECommerceAPI.Repositories
     {
         Task<IEnumerable<Category>> GetCategories();
         Task<Category?> GetCategory(int id);
-        Task AddCategory(Category category);
-        Task UpdateCategory(Category updatedCategory);
+        Task<Category> AddCategory(string name);
+        Task UpdateCategory(int id, string name);
         Task DeleteCategory(int id);
     }
 }

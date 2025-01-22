@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.Data;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -60,11 +61,11 @@ namespace ECommerceAPI.Controllers
 
 
         [HttpPost]
-        public async Task<ActionResult<Category>> AddCategory(Category category)
+        public async Task<ActionResult<Category>> AddCategory(AddCategoryDTO categoryDTO)
         {
             try
             {
-                await _categoryRepository.AddCategory(category);
+                var category = await _categoryRepository.AddCategory(categoryDTO.Name);
 
                 return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
             }
@@ -76,26 +77,21 @@ namespace ECommerceAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult> UpdateCategory(int id, Category updatedCategory)
+        public async Task<ActionResult> UpdateCategory(int id, AddCategoryDTO categoryDTO)
         {
             try
             {
-                if (id != updatedCategory.Id)
-                {
-                    return BadRequest("Category ID mismatch");
-                }
-
                 var existingCategory = await _categoryRepository.GetCategory(id);
                 if (existingCategory == null)
                 {
                     return NotFound(new { Message = $"Category with Id = {id} not found" });
                 }
 
-                await _categoryRepository.UpdateCategory(updatedCategory);
+                await _categoryRepository.UpdateCategory(id, categoryDTO.Name);
 
                 return NoContent();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     "An error occurred while updating the category.");

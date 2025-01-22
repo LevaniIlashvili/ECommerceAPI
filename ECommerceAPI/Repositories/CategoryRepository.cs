@@ -23,19 +23,21 @@ namespace ECommerceAPI.Repositories
             return await _context.Categories.FindAsync(id);
         }
 
-        public async Task AddCategory(Category category)
+        public async Task<Category> AddCategory(string name)
         {
+            var category = new Category { Name = name };
             await _context.Categories.AddAsync(category);
             await _context.SaveChangesAsync();
+            return category;
         }
 
-        public async Task UpdateCategory(Category updatedCategory)
+        public async Task UpdateCategory(int id, string name)
         {
-            var category = await _context.Categories.FindAsync(updatedCategory.Id);
+            var category = await _context.Categories.FindAsync(id);
 
             if (category != null)
             {
-                category.Name = updatedCategory.Name;
+                category.Name = name;
             }
 
             await _context.SaveChangesAsync();
