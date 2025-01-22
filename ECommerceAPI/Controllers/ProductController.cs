@@ -23,7 +23,7 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
         {
             try
             {
@@ -52,7 +52,7 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<ActionResult<Product>> GetProduct(int id)
+        public async Task<ActionResult<ProductDto>> GetProduct(int id)
         {
             try
             {
@@ -84,16 +84,16 @@ namespace ECommerceAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> AddProduct(Product product)
+        public async Task<ActionResult> AddProduct(AddProductDTO productDTO)
         {
             try
             {
-                var category = await _categoryRepository.GetCategory(product.CategoryId);
+                var category = await _categoryRepository.GetCategory(productDTO.CategoryId);
                 if (category == null)
                 {
                     return BadRequest("Invalid CategoryId. The specified category does not exist.");
                 }
-                await _productRepository.AddProduct(product);
+                var product = await _productRepository.AddProduct(productDTO);
                 return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
             }
             catch (Exception)
@@ -104,16 +104,11 @@ namespace ECommerceAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult> UpdateProduct(int id, Product updatedProduct)
+        public async Task<ActionResult> UpdateProduct(int id, AddProductDTO productDTO)
         {
             try
             {
-                if (id != updatedProduct.Id)
-                {
-                    return BadRequest("Product ID mismatch");
-                }
-
-                var category = await _categoryRepository.GetCategory(updatedProduct.CategoryId);
+                var category = await _categoryRepository.GetCategory(productDTO.CategoryId);
                 if (category == null)
                 {
                     return BadRequest("Invalid CategoryId. The specified category does not exist.");
@@ -125,7 +120,7 @@ namespace ECommerceAPI.Controllers
                     return NotFound(new { Message = $"Product with Id = {id} not found" });
                 }
 
-                await _productRepository.UpdateProduct(updatedProduct);
+                await _productRepository.UpdateProduct(id, productDTO);
 
                 return NoContent();
             }

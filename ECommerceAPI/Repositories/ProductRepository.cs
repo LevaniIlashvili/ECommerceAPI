@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.Data;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,22 +24,31 @@ namespace ECommerceAPI.Repositories
             return await _context.Products.Include(p => p.Category).FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        public async Task AddProduct(Product product)
+        public async Task<Product> AddProduct(AddProductDTO productDTO)
         {
+            var product = new Product
+            {
+                Name = productDTO.Name,
+                Description = productDTO.Description,
+                Price = productDTO.Price,
+                Stock = productDTO.Stock,
+                CategoryId = productDTO.CategoryId
+            };
             await _context.Products.AddAsync(product);
             await _context.SaveChangesAsync();
+            return product;
         }
 
-        public async Task UpdateProduct(Product updatedProduct)
+        public async Task UpdateProduct(int id, AddProductDTO updatedProductDTO)
         {
-            var product = await GetProduct(updatedProduct.Id);
+            var product = await GetProduct(id);
             if (product != null)
             {
-                product.Name = updatedProduct.Name;
-                product.Description = updatedProduct.Description;
-                product.Price = updatedProduct.Price;
-                product.Stock = updatedProduct.Stock;
-                product.CategoryId = updatedProduct.CategoryId;
+                product.Name = updatedProductDTO.Name;
+                product.Description = updatedProductDTO.Description;
+                product.Price = updatedProductDTO.Price;
+                product.Stock = updatedProductDTO.Stock;
+                product.CategoryId = updatedProductDTO.CategoryId;
             }
             await _context.SaveChangesAsync();
         }
