@@ -1,4 +1,5 @@
-﻿using ECommerceAPI.Models;
+﻿using ECommerceAPI.Helpers;
+using ECommerceAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerceAPI.Repositories
@@ -7,8 +8,8 @@ namespace ECommerceAPI.Repositories
     {
         Task<IEnumerable<Category>> GetCategories();
         Task<Category?> GetCategory(int id);
-        Task<Category> AddCategory(string name);
-        Task UpdateCategory(int id, string name);
-        Task DeleteCategory(int id);
+        Task<RepositoryResult<Category>> AddCategory(string name);
+        Task<RepositoryResult<bool>> UpdateCategory(int id, string name);
+        Task<RepositoryResult<bool>> DeleteCategory(int id);
     }
 }

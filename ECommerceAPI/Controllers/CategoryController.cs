@@ -1,5 +1,6 @@
 ﻿using ECommerceAPI.Data;
 using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -25,99 +26,79 @@ namespace ECommerceAPI.Controllers
         [AllowAnonymous]
         public async Task<ActionResult> GetCategories()
         {
-            try
-            {
-                var categories = await _categoryRepository.GetCategories();
-                return Ok(categories);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while retrieving categories.");
-            }
+            var categories = await _categoryRepository.GetCategories();
+            return Ok(categories);
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
-            try
-            {
-                var category = await _categoryRepository.GetCategory(id);
+            var category = await _categoryRepository.GetCategory(id);
 
-                if (category == null)
-                {
-                    return NotFound(new { Message = $"Category with Id = {id} not found" });
-                }
-
-                return Ok(category);
-            }
-            catch (Exception)
+            if (category == null)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                   "An error occurred while retrieving the category.");
+                return NotFound(new { Message = $"Category with Id = {id} not found" });
             }
+
+            return Ok(category);
         }
 
 
         [HttpPost]
         public async Task<ActionResult<Category>> AddCategory(AddCategoryDTO categoryDTO)
         {
-            try
-            {
-                var category = await _categoryRepository.AddCategory(categoryDTO.Name);
+            var result = await _categoryRepository.AddCategory(categoryDTO.Name);
 
-                return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
-            }
-            catch (Exception)
+            if (!result.Success)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while adding the category.");
+                return result.ErrorType switch
+                {
+                    RepositoryErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
+
+            if (result.Data == null)
+            {
+                return StatusCode(500, new { Message = "An unexpected error occurred." });
+            }
+
+            return CreatedAtAction(nameof(GetCategory), new { id = result.Data.Id }, result.Data);
         }
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateCategory(int id, AddCategoryDTO categoryDTO)
         {
-            try
+            var result = await _categoryRepository.UpdateCategory(id, categoryDTO.Name);
+
+            if (!result.Success)
             {
-                var existingCategory = await _categoryRepository.GetCategory(id);
-                if (existingCategory == null)
+                return result.ErrorType switch
                 {
-                    return NotFound(new { Message = $"Category with Id = {id} not found" });
-                }
-
-                await _categoryRepository.UpdateCategory(id, categoryDTO.Name);
-
-                return NoContent();
+                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while updating the category.");
-            }
+
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteCategory(int id)
         {
-            try
+            var result = await _categoryRepository.DeleteCategory(id);
+
+            if (!result.Success)
             {
-                var category = await _categoryRepository.GetCategory(id);
-                if (category == null)
+                return result.ErrorType switch
                 {
-                    return NotFound(new { Message = $"Category with Id = {id} not found" });
-                }
-
-                await _categoryRepository.DeleteCategory(id);
-
-                return NoContent();
+                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while deleting the category.");
-            }
+
+            return NoContent();
         }
     }
 }
