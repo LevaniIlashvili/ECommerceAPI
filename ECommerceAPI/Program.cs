@@ -1,5 +1,6 @@
 using ECommerceAPI.Data;
 using ECommerceAPI.Helpers;
+using ECommerceAPI.Middleware;
 using ECommerceAPI.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseAuthentication();
 
