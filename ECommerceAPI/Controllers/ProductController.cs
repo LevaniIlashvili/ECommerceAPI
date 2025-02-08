@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -25,132 +26,106 @@ namespace ECommerceAPI.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
         {
-            try
+            var products = await _productRepository.GetProducts();
+            var productDtos = products.Select(p => new ProductDto
             {
-                var products = await _productRepository.GetProducts();
-                var productDtos = products.Select(p => new ProductDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description = p.Description,
-                    Price = p.Price,
-                    Stock = p.Stock,
-                    Category = new Category
-                    {
-                        Id = p.Category!.Id,
-                        Name = p.Category.Name
-                    }
-                });
-                return Ok(productDtos);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while retrieving products.");
-            }
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                Price = p.Price,
+                Stock = p.Stock,
+                Category = p.Category!
+            });
+            return Ok(productDtos);
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<ActionResult<ProductDto>> GetProduct(int id)
         {
-            try
+            var product = await _productRepository.GetProduct(id);
+            if (product == null)
             {
-                var product = await _productRepository.GetProduct(id);
-                if (product == null)
-                {
-                    return NotFound(new { Message = $"Product with Id = {id} not found" });
-                }
-                var productDto = new ProductDto
-                {
-                    Id = product.Id,
-                    Name = product.Name,
-                    Description = product.Description,
-                    Price = product.Price,
-                    Stock = product.Stock,
-                    Category = new Category
-                    {
-                        Id = product.Category!.Id,
-                        Name = product.Category.Name
-                    }
-                };
-                return Ok(productDto);
+                return NotFound(new { Message = $"Product not found" });
             }
-            catch (Exception)
+            var productDto = new ProductDto
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                   "An error occurred while retrieving the product.");
-            }
+                Id = product.Id,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                Stock = product.Stock,
+                Category = product.Category!
+            };
+            return Ok(productDto);
         }
 
         [HttpPost]
-        public async Task<ActionResult> AddProduct(AddProductDTO productDTO)
+        public async Task<ActionResult<ProductDto>> AddProduct(AddProductDTO addProductDTO)
         {
-            try
+            var result = await _productRepository.AddProduct(addProductDTO);
+
+            if (!result.Success)
             {
-                var category = await _categoryRepository.GetCategory(productDTO.CategoryId);
-                if (category == null)
+                return result.ErrorType switch
                 {
-                    return BadRequest("Invalid CategoryId. The specified category does not exist.");
-                }
-                var product = await _productRepository.AddProduct(productDTO);
-                return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    RepositoryErrorType.Conflict => Conflict(new {Message = result.ErrorMessage}),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
-            catch (Exception)
+
+            if (result.Data == null)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    $"An error occurred while adding the product.");
+                return StatusCode(500, new { Message = "An unexpected error occurred." });
             }
+
+            var productDto = new ProductDto
+            {
+                Id = result.Data.Id,
+                Name = result.Data.Name,
+                Description = result.Data.Description,
+                Price = result.Data.Price,
+                Stock = result.Data.Stock,
+                Category = result.Data.Category!
+            };
+            return CreatedAtAction(nameof(GetProduct), new { id = result.Data.Id }, productDto);
         }
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateProduct(int id, AddProductDTO productDTO)
         {
-            try
+            var result = await _productRepository.UpdateProduct(id, productDTO);
+
+            if (!result.Success)
             {
-                var category = await _categoryRepository.GetCategory(productDTO.CategoryId);
-                if (category == null)
+                return result.ErrorType switch
                 {
-                    return BadRequest("Invalid CategoryId. The specified category does not exist.");
-                }
-
-                var existingProduct = await _productRepository.GetProduct(id);
-                if (existingProduct == null)
-                {
-                    return NotFound(new { Message = $"Product with Id = {id} not found" });
-                }
-
-                await _productRepository.UpdateProduct(id, productDTO);
-
-                return NoContent();
+                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    RepositoryErrorType.BadRequest => BadRequest(new {Message = result.ErrorMessage}),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while updating the product.");
-            }
+
+            return NoContent();
         }
 
-        [HttpDelete]
+        [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteProduct(int id)
         {
-            try
+            var result = await _productRepository.DeleteProduct(id);
+
+            if (!result.Success)
             {
-                var product = await _productRepository.GetProduct(id);
-                if (product == null)
+                return result.ErrorType switch
                 {
-                    return NotFound(new { Message = $"Product with Id = {id} not found" });
-                }
-
-                await _productRepository.DeleteProduct(id);
-
-                return NoContent();
+                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    RepositoryErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while deleting the product.");
-            }
+
+            return NoContent();
         }
     }
 }
