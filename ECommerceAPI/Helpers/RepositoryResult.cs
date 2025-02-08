@@ -6,7 +6,8 @@
         Conflict,
         NotFound,
         DatabaseError,
-        Unauthorized
+        Unauthorized,
+        BadRequest
     }
 
     public class RepositoryResult<T>
