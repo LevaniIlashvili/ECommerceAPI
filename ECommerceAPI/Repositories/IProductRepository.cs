@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 
 namespace ECommerceAPI.Repositories
@@ -7,8 +8,8 @@ namespace ECommerceAPI.Repositories
     {
         Task<Product?> GetProduct(int id);
         Task<IEnumerable<Product>> GetProducts();
-        Task<Product> AddProduct(AddProductDTO product);
-        Task UpdateProduct(int id, AddProductDTO updatedProduct);
-        Task DeleteProduct(int id);
+        Task<RepositoryResult<Product>> AddProduct(AddProductDTO product);
+        Task<RepositoryResult<bool>> UpdateProduct(int id, AddProductDTO updatedProduct);
+        Task<RepositoryResult<bool>> DeleteProduct(int id);
     }
 }

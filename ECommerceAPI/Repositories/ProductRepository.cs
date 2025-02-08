@@ -1,5 +1,6 @@
 ﻿using ECommerceAPI.Data;
 using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,43 +25,82 @@ namespace ECommerceAPI.Repositories
             return await _context.Products.Include(p => p.Category).FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        public async Task<Product> AddProduct(AddProductDTO productDTO)
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons")]
+        public async Task<RepositoryResult<Product>> AddProduct(AddProductDTO productDTO)
         {
+            var category = await _context.Categories.FindAsync(productDTO.CategoryId);
+
+            if (category == null)
+            {
+                return RepositoryResult<Product>.Failure("The specified category doesn't exit", RepositoryErrorType.BadRequest);
+            }
+
+            var existingProduct = await _context.Products.FirstOrDefaultAsync(p => p.Name.ToLower() == productDTO.Name.ToLower());
+
+            if (existingProduct != null)
+            {
+                return RepositoryResult<Product>.Failure("Product with same name already exists", RepositoryErrorType.Conflict);
+            }
+
             var product = new Product
             {
                 Name = productDTO.Name,
                 Description = productDTO.Description,
                 Price = productDTO.Price,
                 Stock = productDTO.Stock,
-                CategoryId = productDTO.CategoryId
+                CategoryId = productDTO.CategoryId,
+                Category = category
             };
             await _context.Products.AddAsync(product);
             await _context.SaveChangesAsync();
-            return product;
+            return RepositoryResult<Product>.SuccessResult(product);
         }
 
-        public async Task UpdateProduct(int id, AddProductDTO updatedProductDTO)
+        public async Task<RepositoryResult<bool>> UpdateProduct(int id, AddProductDTO updatedProductDTO)
         {
-            var product = await GetProduct(id);
-            if (product != null)
+            var product = await _context.Products.FindAsync(id);
+
+            if (product == null)
             {
-                product.Name = updatedProductDTO.Name;
-                product.Description = updatedProductDTO.Description;
-                product.Price = updatedProductDTO.Price;
-                product.Stock = updatedProductDTO.Stock;
-                product.CategoryId = updatedProductDTO.CategoryId;
+                return RepositoryResult<bool>.Failure("Product with specified id not found", RepositoryErrorType.NotFound);
             }
+
+            var category = await _context.Categories.FindAsync(updatedProductDTO.CategoryId);
+
+            if (category == null)
+            {
+                return RepositoryResult<bool>.Failure("Category doesn't exist", RepositoryErrorType.BadRequest);
+            }
+
+            product.Name = updatedProductDTO.Name;
+            product.Description = updatedProductDTO.Description;
+            product.Price = updatedProductDTO.Price;
+            product.Stock = updatedProductDTO.Stock;
+            product.CategoryId = updatedProductDTO.CategoryId;
+
             await _context.SaveChangesAsync();
+            return RepositoryResult<bool>.SuccessResult(true);
         }
 
-        public async Task DeleteProduct(int id)
+        public async Task<RepositoryResult<bool>> DeleteProduct(int id)
         {
             var product = await GetProduct(id);
-            if (product != null)
+
+            if (product == null)
             {
-                _context.Products.Remove(product);
-                await _context.SaveChangesAsync();
+                return RepositoryResult<bool>.Failure("Product doesn't exist", RepositoryErrorType.NotFound);
             }
+
+            var hasActiveOrders = await _context.OrderItems.AnyAsync(oi => oi.ProductId == id);
+
+            if (hasActiveOrders)
+            {
+                return RepositoryResult<bool>.Failure("Cannot delete product with active orders", RepositoryErrorType.Conflict);
+            }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+            return RepositoryResult<bool>.SuccessResult(true);
         }
 
 
