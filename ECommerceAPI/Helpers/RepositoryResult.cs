@@ -7,6 +7,7 @@
         NotFound,
         DatabaseError,
         Unauthorized,
+        Forbid,
         BadRequest
     }
 
