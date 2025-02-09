@@ -2,6 +2,7 @@
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,17 +24,43 @@ namespace ECommerceAPI.Controllers
         {
             var userId = HttpContext.GetAuthenticatedUserId();
 
-            var order = await _orderRepository.CreateOrder(userId, dto.ShippingAddress);
+            var result = await _orderRepository.CreateOrder(userId, dto.ShippingAddress);
 
-            var orderDTO = MapToOrderDTO(order);
+            if (!result.Success)
+            {
+                return result.ErrorType switch
+                {
+                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
+            }
+
+            var orderDTO = MapToOrderDTO(result.Data!);
 
             return Ok(orderDTO);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{orderId}")]
-        public async Task<ActionResult> UpdateOrderStatus(int orderId, OrderStatus orderStatus)
+        public async Task<ActionResult> UpdateOrderStatus(int orderId, UpdateOrderStatusDTO orderStatusDTO)
         {
-            await _orderRepository.UpdateOrderStatus(orderId, orderStatus);
+            if (!Enum.TryParse(orderStatusDTO.OrderStatus, out OrderStatus parsedStatus))
+            {
+                return BadRequest(new { Message = "Invalid order status." });
+            }
+
+            var result = await _orderRepository.UpdateOrderStatus(orderId, parsedStatus);
+
+            if (!result.Success)
+            {
+                return result.ErrorType switch
+                {
+                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
+            }
+
             return NoContent();
         }
 

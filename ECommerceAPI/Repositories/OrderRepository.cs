@@ -1,5 +1,6 @@
 ﻿using ECommerceAPI.Data;
 using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,17 +15,23 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<Order> CreateOrder(int userId, string shippingAddress)
+        public async Task<RepositoryResult<Order>> CreateOrder(int userId, string shippingAddress)
         {
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
                 .ThenInclude(ci => ci.Product)
                 .FirstOrDefaultAsync(c => c.UserId == userId);
 
-            if (cart == null)
+            if (cart == null || cart.CartItems.Count == 0)
             {
-                throw new InvalidOperationException("The cart is empty.");
+                return RepositoryResult<Order>.Failure("Cart is empty", RepositoryErrorType.BadRequest);
             }
+
+            if (cart.CartItems.Any(ci => ci.Quantity > ci.Product.Stock))
+            {
+                return RepositoryResult<Order>.Failure("One or more items in your cart are out of stock.", RepositoryErrorType.BadRequest);
+            }
+
 
             var Order = new Order
             {
@@ -43,13 +50,13 @@ namespace ECommerceAPI.Repositories
 
             _context.Orders.Add(Order);
 
-            _context.CartItems.RemoveRange(cart.CartItems);
-
             cart.CartItems.ForEach(ci => ci.Product.Stock -= ci.Quantity);
+
+            _context.CartItems.RemoveRange(cart.CartItems);
 
             await _context.SaveChangesAsync();
 
-            return Order;
+            return RepositoryResult<Order>.SuccessResult(Order);
         }
 
         public async Task<Order> GetOrderById(int id)
@@ -72,27 +79,28 @@ namespace ECommerceAPI.Repositories
                     .Include(o => o.OrderItems)
                     .ToListAsync();
 
-            if (orders.Count == 0)
-            {
-                throw new Exception("No orders for user");
-            }
-
             return orders;
-
         }
 
-        public async Task UpdateOrderStatus(int orderId, OrderStatus orderStatus)
+        public async Task<RepositoryResult<bool>> UpdateOrderStatus(int orderId, OrderStatus orderStatus)
         {
             var order = await _context.Orders.FindAsync(orderId);
 
             if (order == null)
             {
-                throw new Exception("Order doesnt exist");
+                return RepositoryResult<bool>.Failure("Order doesn't exist", RepositoryErrorType.NotFound);
+            }
+
+            if (!Enum.IsDefined(typeof(OrderStatus), orderStatus))
+            {
+                return RepositoryResult<bool>.Failure("Invalid order status.", RepositoryErrorType.BadRequest);
             }
 
             order.Status = orderStatus;
 
             await _context.SaveChangesAsync();
+
+            return RepositoryResult<bool>.SuccessResult(true);
         }
     }
 }
