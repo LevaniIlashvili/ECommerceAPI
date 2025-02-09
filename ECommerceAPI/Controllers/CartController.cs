@@ -21,81 +21,75 @@ public class CartController : ControllerBase
     public async Task<ActionResult<CartDTO>> GetCart()
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        try
-        {
-            var cart = await _cartRepository.GetCartByUserId(userId);
-            if (cart == null) return NotFound(new { Message = "Cart not found for the user." });
+        var cart = await _cartRepository.GetCartByUserId(userId);
+        if (cart == null) return NotFound(new { Message = "Cart not found for the user." });
 
-            return Ok(cart);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError);
-        }
+        return Ok(cart);
     }
 
     [HttpPost("add")]
     public async Task<ActionResult> AddToCart(AddCartItemDTO dto)
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        try
+        var result = await _cartRepository.AddToCart(userId, dto.ProductId, dto.Quantity);
+        
+        if (!result.Success)
         {
-            await _cartRepository.AddToCart(userId, dto.ProductId, dto.Quantity);
-            return Ok(new { Message = "Product added to cart successfully." });
+            return result.ErrorType switch
+            {
+                RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+            };
         }
-        catch (KeyNotFoundException ex)
+
+        bool isNewItem = result.Data!.Quantity == dto.Quantity;
+
+        if (isNewItem)
         {
-            return NotFound(ex.Message);
+            return CreatedAtAction(nameof(GetCart), new { userId }, new { Message = "Product added to cart successfully." });
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError);
-        }
+
+        return Ok(new { Message = "Product quantity updated in cart successfully." });
     }
 
     [HttpPut("update/{cartItemId}")]
     public async Task<ActionResult> UpdateCartItem(int cartItemId, UpdateCartItemDTO dto)
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        try
+        var result = await _cartRepository.UpdateCartItem(userId, cartItemId, dto.Quantity);
+
+        if (!result.Success)
         {
-            await _cartRepository.UpdateCartItem(userId, cartItemId, dto.Quantity);
-            return Ok(new { Message = "Cart item updated successfully." });
+            return result.ErrorType switch
+            {
+                RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                RepositoryErrorType.Forbid => Forbid(),
+                _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+            };
         }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError);
-        }
+
+        return Ok(new { Message = "Cart item updated successfully." });
     }
 
     [HttpDelete("delete/{cartItemId}")]
     public async Task<ActionResult> RemoveCartItem(int cartItemId)
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        try
+
+        var result =await _cartRepository.RemoveCartItem(userId, cartItemId);
+
+        if(!result.Success)
         {
-            await _cartRepository.RemoveCartItem(userId, cartItemId);
-            return Ok(new { Message = "Cart item removed successfully." });
+            return result.ErrorType switch
+            {
+                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                RepositoryErrorType.Unauthorized => Unauthorized(new { Message = result.ErrorMessage }),
+                _ => StatusCode(500, new { Message = "An unexpected error occurred. - from controller" })
+            };
         }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message );
-        }
+
+        return Ok(new { Message = "Cart item removed successfully." });
     }
 }

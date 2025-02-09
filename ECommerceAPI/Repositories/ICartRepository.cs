@@ -1,4 +1,5 @@
 ﻿using ECommerceAPI.DTOs;
+using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 
 namespace ECommerceAPI.Repositories
@@ -6,8 +7,8 @@ namespace ECommerceAPI.Repositories
     public interface ICartRepository
     {
         Task<CartDTO?> GetCartByUserId(int userId);
-        Task AddToCart(int userId, int productId, int quantity);
-        Task UpdateCartItem(int userId, int cartItemId, int quantity);
-        Task RemoveCartItem(int userId, int cartItemId);
+        Task<RepositoryResult<CartItem>> AddToCart(int userId, int productId, int quantity);
+        Task<RepositoryResult<bool>> UpdateCartItem(int userId, int cartItemId, int quantity);
+        Task<RepositoryResult<bool>> RemoveCartItem(int userId, int cartItemId);
     }
 }
