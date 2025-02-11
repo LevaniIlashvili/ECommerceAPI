@@ -31,15 +31,20 @@ namespace ECommerceAPI.Middleware
         private static Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
             var response = new
             {
                 Success = false,
-                Message = "An internal server error occurred. Please try again later."
+                Message = exception is UnauthorizedAccessException
+                    ? "Unauthorized access. Please log in."
+                    : "An internal server error occurred. Please try again later."
             };
+
+            context.Response.StatusCode = exception is UnauthorizedAccessException
+               ? StatusCodes.Status401Unauthorized
+               : StatusCodes.Status500InternalServerError;
 
             return context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
     }
-}
+}   
