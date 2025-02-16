@@ -24,7 +24,7 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<PaginationResultDTO<ProductDto>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
 
