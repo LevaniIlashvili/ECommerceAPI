@@ -24,9 +24,10 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts([FromQuery] string? category = null)
         {
-            var products = await _productRepository.GetProducts();
+            var products = await _productRepository.GetProducts(category);
+
             var productDtos = products.Select(p => new ProductDto
             {
                 Id = p.Id,

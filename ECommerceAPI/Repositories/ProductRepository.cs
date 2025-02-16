@@ -15,9 +15,16 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Product>> GetProducts()
+        public async Task<IEnumerable<Product>> GetProducts(string? category = null)
         {
-            return await _context.Products.Include(p => p.Category).ToListAsync();
+            var query = _context.Products.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                query = query.Where(p => p.Category != null && p.Category.Name == category);
+            }
+
+            return await query.Include(p => p.Category).ToListAsync();
         }
 
         public async Task<Product?> GetProduct(int id)
