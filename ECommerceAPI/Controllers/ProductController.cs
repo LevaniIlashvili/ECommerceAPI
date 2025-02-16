@@ -24,9 +24,9 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts([FromQuery] string? category = null)
+        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var products = await _productRepository.GetProducts(category);
+            var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
 
             var productDtos = products.Select(p => new ProductDto
             {
@@ -37,7 +37,16 @@ namespace ECommerceAPI.Controllers
                 Stock = p.Stock,
                 Category = p.Category!
             });
-            return Ok(productDtos);
+
+            var response = new
+            {
+                Products = productDtos,
+                TotalCount = productCount,
+                TotalPages = (int)Math.Ceiling(productCount / (double)pageSize),
+                CurrentPage = pageNumber
+            };
+
+            return Ok(response);
         }
 
         [HttpGet("{id:int}")]

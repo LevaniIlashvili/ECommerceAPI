@@ -15,7 +15,7 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Product>> GetProducts(string? category = null)
+        public async Task<(IEnumerable<Product> Products, int TotalCount)> GetProducts(string? category = null, int pageNumber = 1, int pageSize = 10)
         {
             var query = _context.Products.AsQueryable();
 
@@ -24,7 +24,15 @@ namespace ECommerceAPI.Repositories
                 query = query.Where(p => p.Category != null && p.Category.Name == category);
             }
 
-            return await query.Include(p => p.Category).ToListAsync();
+            var productCount = await query.CountAsync();
+
+            var products = await query
+                                .Skip((pageNumber - 1) * pageSize)
+                                .Take(pageSize)
+                                .Include(p => p.Category)
+                                .ToListAsync();
+
+            return (products, productCount);
         }
 
         public async Task<Product?> GetProduct(int id)
