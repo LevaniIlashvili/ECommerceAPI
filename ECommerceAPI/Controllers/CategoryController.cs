@@ -1,32 +1,24 @@
-﻿using ECommerceAPI.Data;
-using ECommerceAPI.DTOs;
+﻿using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
-using ECommerceAPI.Repositories;
+using ECommerceAPI.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ECommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
-    public class CategoryController : ControllerBase
+    public class CategoryController(ICategoryService categoryService) : ControllerBase
     {
-        private readonly ICategoryRepository _categoryRepository;
-
-        public CategoryController(ICategoryRepository categoryRepository)
-        {
-            _categoryRepository = categoryRepository;
-        }
+        private readonly ICategoryService _categoryService = categoryService;
 
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult> GetCategories()
         {
-            var categories = await _categoryRepository.GetCategories();
+            var categories = await _categoryService.GetAllCategoriesAsync();
             return Ok(categories);
         }
 
@@ -34,11 +26,11 @@ namespace ECommerceAPI.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
-            var category = await _categoryRepository.GetCategory(id);
+            var category = await _categoryService.GetCategoryByIdAsync(id);
 
             if (category == null)
             {
-                return NotFound(new { Message = $"Category with Id = {id} not found" });
+                return NotFound(new { Message = $"Category with Id {id} not found" });
             }
 
             return Ok(category);
@@ -48,13 +40,13 @@ namespace ECommerceAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Category>> AddCategory(AddCategoryDTO categoryDTO)
         {
-            var result = await _categoryRepository.AddCategory(categoryDTO.Name);
+            var result = await _categoryService.AddCategoryAsync(categoryDTO);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
+                    ErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
@@ -70,13 +62,14 @@ namespace ECommerceAPI.Controllers
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateCategory(int id, AddCategoryDTO categoryDTO)
         {
-            var result = await _categoryRepository.UpdateCategory(id, categoryDTO.Name);
+            var result = await _categoryService.UpdateCategoryAsync(id, categoryDTO);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    ErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
@@ -87,13 +80,13 @@ namespace ECommerceAPI.Controllers
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteCategory(int id)
         {
-            var result = await _categoryRepository.DeleteCategory(id);
+            var result = await _categoryService.DeleteCategoryAsync(id);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
