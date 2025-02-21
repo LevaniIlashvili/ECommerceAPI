@@ -10,8 +10,13 @@ namespace ECommerceAPI.Services
         private readonly ICategoryRepository _categoryRepository = categoryRepository;
         private readonly IOrderRepository _orderRepository = orderRepository;
 
-        public async Task<(IEnumerable<ProductDTO> Products, int TotalCount)> GetAllProductsAsync(string? category = null, int pageNumber = 1, int pageSize = 10)
+        public async Task<Result<(IEnumerable<ProductDTO>, int)>> GetAllProductsAsync(string? category = null, int pageNumber = 1, int pageSize = 10)
         {
+            if (!string.IsNullOrWhiteSpace(category) && !await _categoryRepository.CategoryExists(category))
+            {
+                return Result<(IEnumerable<ProductDTO> Products, int TotalCount)>.Failure("specified category doesn't exist", ErrorType.NotFound);
+            }
+
             var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
 
             var productDTOs = products.Select(p => new ProductDTO
@@ -24,7 +29,7 @@ namespace ECommerceAPI.Services
                 Category = p.Category!
             });
 
-            return (productDTOs, productCount);
+            return Result<(IEnumerable<ProductDTO>, int)>.SuccessResult((productDTOs, productCount));
         }
 
         public async Task<ProductDTO?> GetProductByIdAsync(int id)

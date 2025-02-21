@@ -15,10 +15,20 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        // TODO: handle category doesnt exist
         public async Task<ActionResult<PaginationResultDTO<ProductDTO>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var (productDTOs, productCount) = await _productService.GetAllProductsAsync(category, pageNumber, pageSize);
+            var result = await _productService.GetAllProductsAsync(category, pageNumber, pageSize);
+
+            if (!result.Success)
+            {
+                return result.ErrorType switch
+                {
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
+            }
+
+            var (productDTOs, productCount) = result.Data;
 
             var response = new
             {
