@@ -1,9 +1,7 @@
 ﻿using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
-using ECommerceAPI.Models;
-using ECommerceAPI.Repositories;
+using ECommerceAPI.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerceAPI.Controllers
@@ -11,36 +9,20 @@ namespace ECommerceAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
-    public class ProductController : ControllerBase
+    public class ProductController(IProductService productService) : ControllerBase
     {
-        private readonly IProductRepository _productRepository;
-        private readonly ICategoryRepository _categoryRepository;
-
-        public ProductController(IProductRepository productRepository, ICategoryRepository categoryRepository)
-        {
-            _productRepository = productRepository;
-            _categoryRepository = categoryRepository;
-        }
+        private readonly IProductService _productService = productService;
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<PaginationResultDTO<ProductDto>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        // TODO: handle category doesnt exist
+        public async Task<ActionResult<PaginationResultDTO<ProductDTO>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
-
-            var productDtos = products.Select(p => new ProductDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Description = p.Description,
-                Price = p.Price,
-                Stock = p.Stock,
-                Category = p.Category!
-            });
+            var (productDTOs, productCount) = await _productService.GetAllProductsAsync(category, pageNumber, pageSize);
 
             var response = new
             {
-                Products = productDtos,
+                Products = productDTOs,
                 TotalCount = productCount,
                 TotalPages = (int)Math.Ceiling(productCount / (double)pageSize),
                 CurrentPage = pageNumber
@@ -51,86 +33,65 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<ActionResult<ProductDto>> GetProduct(int id)
+        public async Task<ActionResult<ProductDTO>> GetProduct(int id)
         {
-            var product = await _productRepository.GetProduct(id);
-            if (product == null)
+            var productDTO = await _productService.GetProductByIdAsync(id);
+
+            if (productDTO == null)
             {
                 return NotFound(new { Message = $"Product not found" });
             }
-            var productDto = new ProductDto
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Description = product.Description,
-                Price = product.Price,
-                Stock = product.Stock,
-                Category = product.Category!
-            };
-            return Ok(productDto);
+  
+            return Ok(productDTO);
         }
 
         [HttpPost]
-        public async Task<ActionResult<ProductDto>> AddProduct(AddProductDTO addProductDTO)
+        public async Task<ActionResult<ProductDTO>> AddProduct(AddProductDTO addProductDTO)
         {
-            var result = await _productRepository.AddProduct(addProductDTO);
+            var result = await _productService.AddProductAsync(addProductDTO);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
-                    RepositoryErrorType.Conflict => Conflict(new {Message = result.ErrorMessage}),
+                    ErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    ErrorType.Conflict => Conflict(new {Message = result.ErrorMessage}),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
 
-            if (result.Data == null)
-            {
-                return StatusCode(500, new { Message = "An unexpected error occurred." });
-            }
-
-            var productDto = new ProductDto
-            {
-                Id = result.Data.Id,
-                Name = result.Data.Name,
-                Description = result.Data.Description,
-                Price = result.Data.Price,
-                Stock = result.Data.Stock,
-                Category = result.Data.Category!
-            };
-            return CreatedAtAction(nameof(GetProduct), new { id = result.Data.Id }, productDto);
+            return CreatedAtAction(nameof(GetProduct), new { id = result.Data!.Id }, result.Data);
         }
 
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateProduct(int id, AddProductDTO productDTO)
         {
-            var result = await _productRepository.UpdateProduct(id, productDTO);
+            var result = await _productService.UpdateProductAsync(id, productDTO);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
-                    RepositoryErrorType.BadRequest => BadRequest(new {Message = result.ErrorMessage}),
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    ErrorType.BadRequest => BadRequest(new {Message = result.ErrorMessage}),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
 
-            return NoContent();
+            return Ok(new { Message = "Product updated successfully." });
         }
 
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteProduct(int id)
         {
-            var result = await _productRepository.DeleteProduct(id);
+            var result = await _productService.DeleteProductAsync(id);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
-                    RepositoryErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                    ErrorType.Conflict => Conflict(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
