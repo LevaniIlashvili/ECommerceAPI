@@ -8,8 +8,9 @@ namespace ECommerceAPI.Repositories
     {
         Task<Product?> GetProduct(int id);
         Task<(IEnumerable<Product> Products, int TotalCount)> GetProducts(string? category = null, int pageNumber = 1, int pageSize = 10);
-        Task<RepositoryResult<Product>> AddProduct(AddProductDTO product);
-        Task<RepositoryResult<bool>> UpdateProduct(int id, AddProductDTO updatedProduct);
-        Task<RepositoryResult<bool>> DeleteProduct(int id);
+        Task<Product> AddProduct(AddProductDTO product);
+        Task<bool> ProductExists(string name);
+        Task UpdateProduct(int id, AddProductDTO updatedProduct);
+        Task DeleteProduct(int id);
     }
 }
