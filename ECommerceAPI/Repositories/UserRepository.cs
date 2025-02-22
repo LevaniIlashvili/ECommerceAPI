@@ -1,5 +1,4 @@
 ﻿using ECommerceAPI.Data;
-using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,21 +13,10 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<User> RegisterUser(User user, string password)
+        public async Task<User> RegisterUser(User user)
         {
-            user.PasswordHash = PasswordHasher.HashPassword(password);
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
-            return user;
-        }
-
-        public async Task<User?> LoginUser(string email, string password)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null || !PasswordHasher.VerifyPassword(user.PasswordHash, password))
-            {
-                return null;
-            }
             return user;
         }
 
@@ -37,18 +25,9 @@ namespace ECommerceAPI.Repositories
             return await _context.Users.ToListAsync();
         }
 
-        public async Task<User?> GetUserById(int id)
+        public async Task<User?> GetUserByEmail(string email)
         {
-            return await _context.Users.FindAsync(id);
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
-
-        public async Task<bool> DeleteUser(int id)
-        {
-            var user = await GetUserById(id);
-            if (user == null) return false;
-            _context.Users.Remove(user);
-            return await _context.SaveChangesAsync() > 0;
-        }
-
     }
 }

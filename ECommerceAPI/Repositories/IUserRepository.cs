@@ -1,13 +1,12 @@
-﻿using ECommerceAPI.Models;
+﻿using ECommerceAPI.DTOs;
+using ECommerceAPI.Models;
 
 namespace ECommerceAPI.Repositories
 {
     public interface IUserRepository
     {
-        Task<User> RegisterUser(User user, string password);
-        Task<User?> LoginUser(string email, string password);
-        Task<User?> GetUserById(int id);
+        Task<User> RegisterUser(User user);
+        Task<User?> GetUserByEmail(string email);
         Task<List<User>> GetAllUsers();
-        Task<bool> DeleteUser(int id);
     }
 }

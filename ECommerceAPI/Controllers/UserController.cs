@@ -1,72 +1,63 @@
 ﻿using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
-using ECommerceAPI.Models;
-using ECommerceAPI.Repositories;
-using Microsoft.AspNetCore.Http;
+using ECommerceAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerceAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class UserController(IUserService userService, IConfiguration configuration) : ControllerBase
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IConfiguration _configuration;
-
-        public UserController(IUserRepository userRepository, IConfiguration configuration)
-        {
-            _userRepository = userRepository;
-            _configuration = configuration;
-        }
+        private readonly IUserService _userService = userService;
+        private readonly IConfiguration _configuration = configuration;
 
         [HttpPost("register")]
-        public async Task<ActionResult> Register(UserRegisterDTO registerDTO)
+        public async Task<ActionResult<UserDTO>> Register(UserRegisterDTO registerDTO)
         {
-            var user = new User
-            {
-                FirstName = registerDTO.FirstName,
-                LastName = registerDTO.LastName,
-                Email = registerDTO.Email,
-                Role = "Customer"
-            };
-            var registeredUser = await _userRepository.RegisterUser(user, registerDTO.Password);
+            var result = await _userService.RegisterUser(registerDTO);
 
-            return Ok(new UserDTO
+            if (!result.Success)
             {
-                Id = registeredUser.Id,
-                FirstName = registeredUser.FirstName,
-                LastName = registeredUser.LastName,
-                Email = registeredUser.Email,
-                Role = registeredUser.Role
-            });
+                return result.ErrorType switch
+                {
+                    ErrorType.Conflict => Conflict(result.ErrorMessage),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
+            }
+
+            return Ok(result.Data);
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult> Login(UserLoginDTO loginDTO)
+        public async Task<ActionResult<LoginResponseDTO>> Login(UserLoginDTO loginDTO)
         {
-            var user = await _userRepository.LoginUser(loginDTO.Email, loginDTO.Password);
-            if (user == null)
-                return Unauthorized("Invalid credentials");
+            var result = await _userService.LoginUser(loginDTO);
 
-            var secretKey = _configuration["Jwt:SecretKey"];
-            var issuer = _configuration["Jwt:Issuer"];
-            var audience = _configuration["Jwt:Audience"];
+            if (!result.Success)
+            {
+                return result.ErrorType switch
+                {
+                    ErrorType.BadRequest => BadRequest(result.ErrorMessage),
+                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
+                };
+            }
 
-            var token = JwtHelper.GenerateToken(user, secretKey!, issuer!, audience!);
+            var (token, user) = result.Data;
 
             return Ok(new
             {
                 Token = token,
-                User = new UserDTO
-                {
-                    Id = user.Id,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    Email = user.Email,
-                    Role = user.Role
-                }
+                User = user
             });
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<List<UserDTO>>> GetUsers()
+        {
+            return await _userService.GetAllUsers();
         }
     }
 }
