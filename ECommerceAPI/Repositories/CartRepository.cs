@@ -1,6 +1,4 @@
 ﻿using ECommerceAPI.Data;
-using ECommerceAPI.DTOs;
-using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,125 +13,39 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<CartDTO?> GetCartByUserId(int userId)
+        public async Task<Cart> GetCartByUserId(int userId)
         {
             return await _context.Carts
-                .AsNoTracking()
-                .Where(c => c.UserId == userId)
-                .Select(c => new CartDTO
-                {
-                    UserId = c.UserId,
-                    CartItems = c.CartItems.Select(ci => new CartItemDTO
-                    {
-                        Id = ci.Id,
-                        ProductId = ci.ProductId,
-                        Quantity = ci.Quantity
-                    }).ToList()
-                }).FirstOrDefaultAsync();
+                .Include(c => c.CartItems)
+                .FirstAsync(c => c.UserId == userId);
         }
 
-        public async Task<RepositoryResult<CartItem>> AddToCart(int userId, int productId, int quantity)
+        public async Task<CartItem> AddToCart(int userId, int productId, int quantity)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                return RepositoryResult<CartItem>.Failure("Invalid user ID", RepositoryErrorType.BadRequest);
-            }
+            var cart = await GetCartByUserId(userId);
 
-            var product = await _context.Products.FindAsync(productId);
-            if (product == null)
-            {
-                return RepositoryResult<CartItem>.Failure("Product not found", RepositoryErrorType.NotFound);
-            }
+            var cartItem = new CartItem { CartId = cart.Id, ProductId = productId, Quantity = quantity };
 
-            if (product.Stock < quantity)
-            {
-                return RepositoryResult<CartItem>.Failure("Insufficient stock", RepositoryErrorType.BadRequest);
-            }
-
-            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.UserId == userId);
-            
-            if (cart == null)
-            {
-                cart = new Cart
-                {
-                    UserId = userId,
-                    CartItems = new List<CartItem>()
-                };
-                _context.Carts.Add(cart);
-            }
-
-            var cartItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == productId);
-
-            if (cartItem != null)
-            {
-                if (product.Stock < quantity + cartItem.Quantity)
-                {
-                    return RepositoryResult<CartItem>.Failure("Insufficient stock", RepositoryErrorType.BadRequest);
-                }
-                cartItem.Quantity += quantity;
-            }
-            else
-            {
-                cartItem = new CartItem { CartId = cart.Id, ProductId = productId, Quantity = quantity };
-                cart.CartItems.Add(cartItem);
-            }
-
+            cart.CartItems.Add(cartItem);
             await _context.SaveChangesAsync();
 
-            return RepositoryResult<CartItem>.SuccessResult(cartItem);
+            return cartItem;
         }
 
-        public async Task<RepositoryResult<bool>> UpdateCartItem(int userId, int cartItemId, int quantity)
+        public async Task<bool> UpdateCartItem(int cartItemId, int quantity)
         {
-            var cartItem = await _context.CartItems
-                .Include(ci => ci.Cart)
-                .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
-            if (cartItem == null)
-            {
-                return RepositoryResult<bool>.Failure($"Cart item with ID {cartItemId} not found.", RepositoryErrorType.NotFound);
-            }
-
-            if (cartItem.Cart.UserId != userId)
-            {
-                return RepositoryResult<bool>.Failure("User is not authorized to modify this cart item.", RepositoryErrorType.Forbid);
-            }
-
-            var product = await _context.Products.FindAsync(cartItem.ProductId);
-            if (product == null)
-            {
-                return RepositoryResult<bool>.Failure($"Product item with ID {cartItem.ProductId} not found.", RepositoryErrorType.NotFound);
-            }
-
-            if (product.Stock < quantity)
-            {
-                return RepositoryResult<bool>.Failure($"Insufficient stock for product {product.Id}", RepositoryErrorType.BadRequest);
-            }
+            var cartItem = await _context.CartItems.FirstAsync(ci => ci.Id == cartItemId);
 
             cartItem.Quantity = quantity;
-            await _context.SaveChangesAsync();
-
-            return RepositoryResult<bool>.SuccessResult(true);
+            return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<RepositoryResult<bool>> RemoveCartItem(int userId, int cartItemId)
+        public async Task<bool> RemoveCartItem(int cartItemId)
         {
-            var cartItem = await _context.CartItems
-                .Include(ci => ci.Cart)
-                .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
-            if (cartItem == null)
-            {
-                return RepositoryResult<bool>.Failure($"Cart item with ID {cartItemId} not found.", RepositoryErrorType.NotFound);
-            }
-
-            if (cartItem.Cart.UserId != userId)
-            {
-                return RepositoryResult<bool>.Failure("User is not authorized to modify this cart item.", RepositoryErrorType.Unauthorized);
-            }
+            var cartItem = await _context.CartItems.FirstAsync(ci => ci.Id == cartItemId);
 
             _context.CartItems.Remove(cartItem);
-            await _context.SaveChangesAsync();
-            return RepositoryResult<bool>.SuccessResult(true);
+            return await _context.SaveChangesAsync() > 0;
         }
 
 

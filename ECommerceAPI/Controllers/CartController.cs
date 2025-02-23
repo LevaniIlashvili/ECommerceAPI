@@ -1,6 +1,6 @@
 ﻿using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
-using ECommerceAPI.Repositories;
+using ECommerceAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,20 +9,19 @@ using Microsoft.AspNetCore.Mvc;
 [ApiController]
 public class CartController : ControllerBase
 {
-    private readonly ICartRepository _cartRepository;
+    private readonly ICartService _cartService;
 
-    public CartController(ICartRepository cartRepository)
+    public CartController(ICartService cartService)
     {
-        _cartRepository = cartRepository;
+        _cartService = cartService;
     }
 
 
-    [HttpGet("")]
+    [HttpGet]
     public async Task<ActionResult<CartDTO>> GetCart()
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        var cart = await _cartRepository.GetCartByUserId(userId);
-        if (cart == null) return NotFound(new { Message = "Cart not found for the user." });
+        var cart = await _cartService.GetCartByUserId(userId);
 
         return Ok(cart);
     }
@@ -31,14 +30,14 @@ public class CartController : ControllerBase
     public async Task<ActionResult> AddToCart(AddCartItemDTO dto)
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        var result = await _cartRepository.AddToCart(userId, dto.ProductId, dto.Quantity);
+        var result = await _cartService.AddToCart(userId, dto.ProductId, dto.Quantity);
         
         if (!result.Success)
         {
             return result.ErrorType switch
             {
-                RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
-                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                ErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
                 _ => StatusCode(500, new { Message = "An unexpected error occurred." })
             };
         }
@@ -57,15 +56,15 @@ public class CartController : ControllerBase
     public async Task<ActionResult> UpdateCartItem(int cartItemId, UpdateCartItemDTO dto)
     {
         var userId = HttpContext.GetAuthenticatedUserId();
-        var result = await _cartRepository.UpdateCartItem(userId, cartItemId, dto.Quantity);
+        var result = await _cartService.UpdateCartItem(userId, cartItemId, dto.Quantity);
 
         if (!result.Success)
         {
             return result.ErrorType switch
             {
-                RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
-                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
-                RepositoryErrorType.Forbid => Forbid(),
+                ErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                ErrorType.Forbid => Forbid(),
                 _ => StatusCode(500, new { Message = "An unexpected error occurred." })
             };
         }
@@ -78,14 +77,14 @@ public class CartController : ControllerBase
     {
         var userId = HttpContext.GetAuthenticatedUserId();
 
-        var result =await _cartRepository.RemoveCartItem(userId, cartItemId);
+        var result = await _cartService.RemoveCartItem(userId, cartItemId);
 
         if(!result.Success)
         {
             return result.ErrorType switch
             {
-                RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
-                RepositoryErrorType.Unauthorized => Unauthorized(new { Message = result.ErrorMessage }),
+                ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
+                ErrorType.Unauthorized => Unauthorized(new { Message = result.ErrorMessage }),
                 _ => StatusCode(500, new { Message = "An unexpected error occurred. - from controller" })
             };
         }
