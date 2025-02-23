@@ -2,6 +2,7 @@
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
+using ECommerceAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +13,11 @@ namespace ECommerceAPI.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
-        private readonly IOrderRepository _orderRepository;
+        private readonly IOrderService _orderService;
 
-        public OrderController(IOrderRepository orderRepository)
+        public OrderController(IOrderService orderService)
         {
-            _orderRepository = orderRepository;
+            _orderService = orderService;
         }
 
         [HttpPost]
@@ -24,39 +25,36 @@ namespace ECommerceAPI.Controllers
         {
             var userId = HttpContext.GetAuthenticatedUserId();
 
-            var result = await _orderRepository.CreateOrder(userId, dto.ShippingAddress);
+            var result = await _orderService.CreateOrder(userId, dto.ShippingAddress);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    ErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
-            }
+            };
 
-            var orderDTO = MapToOrderDTO(result.Data!);
-
-            return Ok(orderDTO);
+            return Ok(result.Data);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{orderId}")]
         public async Task<ActionResult> UpdateOrderStatus(int orderId, UpdateOrderStatusDTO orderStatusDTO)
         {
-            if (!Enum.TryParse(orderStatusDTO.OrderStatus, out OrderStatus parsedStatus))
+            if (!Enum.TryParse(orderStatusDTO.OrderStatus, true, out OrderStatus parsedStatus))
             {
                 return BadRequest(new { Message = "Invalid order status." });
             }
 
-            var result = await _orderRepository.UpdateOrderStatus(orderId, parsedStatus);
+            var result = await _orderService.UpdateOrderStatus(orderId, parsedStatus);
 
             if (!result.Success)
             {
                 return result.ErrorType switch
                 {
-                    RepositoryErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
-                    RepositoryErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
+                    ErrorType.NotFound => NotFound(new { Message = result.ErrorMessage }),
                     _ => StatusCode(500, new { Message = "An unexpected error occurred." })
                 };
             }
@@ -69,31 +67,9 @@ namespace ECommerceAPI.Controllers
         {
             var userId = HttpContext.GetAuthenticatedUserId();
 
-            var orders = await _orderRepository.GetOrdersByUserId(userId);
-
-            var orderDTOs = orders.Select(o => MapToOrderDTO(o));
+            var orderDTOs = await _orderService.GetOrdersByUserId(userId);
 
             return Ok(orderDTOs);
-        }
-
-        private static OrderDTO MapToOrderDTO(Order order) 
-        {
-            return new OrderDTO
-            {
-                Id = order.Id,
-                UserId = order.UserId,
-                TotalPrice = order.TotalPrice,
-                OrderDate = order.OrderDate,
-                Status = order.Status.ToString(),
-                ShippingAddress = order.ShippingAddress,
-                OrderItems = order.OrderItems.Select(oi => new OrderItemDTO
-                {
-                    Id = oi.Id,
-                    ProductId = oi.ProductId,
-                    Quantity = oi.Quantity,
-                    PriceAtPurchase = oi.PriceAtPurchase
-                }).ToList()
-            };
         }
     }
 }

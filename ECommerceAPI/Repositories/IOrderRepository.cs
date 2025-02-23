@@ -5,9 +5,10 @@ namespace ECommerceAPI.Repositories
 {
     public interface IOrderRepository
     {
-        Task<RepositoryResult<Order>> CreateOrder(int userId, string shippingAddress);
+        Task<Order> CreateOrder(Order order);
         Task<IEnumerable<Order>> GetOrdersByUserId(int userId);
-        Task<Order> GetOrderById(int id);
-        Task<RepositoryResult<bool>> UpdateOrderStatus(int orderId, OrderStatus orderStatus);
+        Task<Order?> GetOrderById(int id);
+        Task<bool> UpdateOrderStatus(int orderId, OrderStatus orderStatus);
+        Task<bool> HasActiveOrders(int productId);
     }
 }
