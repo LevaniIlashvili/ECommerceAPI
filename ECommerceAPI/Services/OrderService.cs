@@ -1,8 +1,8 @@
-﻿using ECommerceAPI.DTOs;
+﻿using AutoMapper;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
-using Microsoft.EntityFrameworkCore;
 
 namespace ECommerceAPI.Services
 {
@@ -10,11 +10,13 @@ namespace ECommerceAPI.Services
     {
         private readonly IOrderRepository _orderRepository;
         private readonly ICartRepository _cartRepository;
+        private readonly IMapper _mapper;
 
-        public OrderService(IOrderRepository orderRepository, ICartRepository cartRepository)
+        public OrderService(IOrderRepository orderRepository, ICartRepository cartRepository, IMapper mapper)
         {
             _orderRepository = orderRepository;
             _cartRepository = cartRepository;
+            _mapper = mapper;
         }
 
         public async Task<Result<OrderDTO>> CreateOrder(int userId, string shippingAddress)
@@ -48,16 +50,14 @@ namespace ECommerceAPI.Services
 
             var addedOrder = await _orderRepository.CreateOrder(order);
 
-            return Result<OrderDTO>.SuccessResult(MapToOrderDTO(addedOrder));
+            return Result<OrderDTO>.SuccessResult(_mapper.Map<OrderDTO>(addedOrder));
         }
 
         public async Task<IEnumerable<OrderDTO>> GetOrdersByUserId(int userId)
         {
             var orders = await _orderRepository.GetOrdersByUserId(userId);
 
-            var orderDTOs = orders.Select(o => MapToOrderDTO(o));
-
-            return orderDTOs;
+            return _mapper.Map<List<OrderDTO>>(orders);
         }
 
         public async Task<Result<bool>> UpdateOrderStatus(int orderId, OrderStatus orderStatus)
@@ -71,26 +71,6 @@ namespace ECommerceAPI.Services
 
             await _orderRepository.UpdateOrderStatus(orderId, orderStatus);
             return Result<bool>.SuccessResult(true);
-        }
-
-        private static OrderDTO MapToOrderDTO(Order order)
-        {
-            return new OrderDTO
-            {
-                Id = order.Id,
-                UserId = order.UserId,
-                TotalPrice = order.TotalPrice,
-                OrderDate = order.OrderDate,
-                Status = order.Status.ToString(),
-                ShippingAddress = order.ShippingAddress,
-                OrderItems = order.OrderItems.Select(oi => new OrderItemDTO
-                {
-                    Id = oi.Id,
-                    ProductId = oi.ProductId,
-                    Quantity = oi.Quantity,
-                    PriceAtPurchase = oi.PriceAtPurchase
-                }).ToList()
-            };
         }
     }
 }

@@ -1,14 +1,24 @@
-﻿using ECommerceAPI.DTOs;
+﻿using AutoMapper;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Repositories;
 
 namespace ECommerceAPI.Services
 {
-    public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IOrderRepository orderRepository) : IProductService
+    public class ProductService : IProductService
     {
-        private readonly IProductRepository _productRepository = productRepository;
-        private readonly ICategoryRepository _categoryRepository = categoryRepository;
-        private readonly IOrderRepository _orderRepository = orderRepository;
+        private readonly IProductRepository _productRepository;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly IOrderRepository _orderRepository;
+        private readonly IMapper _mapper;
+
+        public ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IOrderRepository orderRepository, IMapper mapper)
+        {
+            _productRepository = productRepository;
+            _categoryRepository = categoryRepository;
+            _orderRepository = orderRepository;
+            _mapper = mapper;
+        }
 
         public async Task<Result<(IEnumerable<ProductDTO>, int)>> GetAllProductsAsync(string? category = null, int pageNumber = 1, int pageSize = 10)
         {
@@ -19,15 +29,7 @@ namespace ECommerceAPI.Services
 
             var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
 
-            var productDTOs = products.Select(p => new ProductDTO
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Description = p.Description,
-                Price = p.Price,
-                Stock = p.Stock,
-                Category = p.Category!
-            });
+            var productDTOs = _mapper.Map<List<ProductDTO>>(products);
 
             return Result<(IEnumerable<ProductDTO>, int)>.SuccessResult((productDTOs, productCount));
         }
@@ -36,15 +38,7 @@ namespace ECommerceAPI.Services
         {
             var product = await _productRepository.GetProduct(id);
 
-            return product == null ? null : new ProductDTO
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Description = product.Description,
-                Price = product.Price,
-                Stock = product.Stock,
-                Category = product.Category!
-            };
+            return _mapper.Map<ProductDTO>(product);
         }
 
         public async Task<Result<ProductDTO>> AddProductAsync(AddProductDTO addProductDTO)
@@ -63,15 +57,9 @@ namespace ECommerceAPI.Services
 
             var product = await _productRepository.AddProduct(addProductDTO);
 
-            var productDTO = new ProductDTO
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Description = product.Description,
-                Price = product.Price,
-                Stock = product.Stock,
-                Category = category
-            };
+            var productDTO = _mapper.Map<ProductDTO>(product);
+
+            productDTO.Category = category;
 
             return Result<ProductDTO>.SuccessResult(productDTO);
         }

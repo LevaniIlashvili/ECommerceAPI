@@ -1,14 +1,23 @@
-﻿using ECommerceAPI.DTOs;
+﻿using AutoMapper;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
 
 namespace ECommerceAPI.Services
 {
-    public class UserService(IUserRepository userRepository, IConfiguration configuration) : IUserService
+    public class UserService : IUserService
     {
-        private readonly IUserRepository _userRepository = userRepository;
-        private readonly IConfiguration _configuration = configuration;
+        private readonly IUserRepository _userRepository;
+        private readonly IConfiguration _configuration;
+        private readonly IMapper _mapper;
+
+        public UserService(IUserRepository userRepository, IConfiguration configuration, IMapper mapper)
+        {
+            _userRepository = userRepository;
+            _configuration = configuration;
+            _mapper = mapper;
+        }
 
         public async Task<Result<UserDTO>> RegisterUser(UserRegisterDTO registerDTO)
         {
@@ -19,25 +28,13 @@ namespace ECommerceAPI.Services
                 return Result<UserDTO>.Failure("User with this email already exists", ErrorType.Conflict);
             }
 
-            var user = new User
-            {
-                FirstName = registerDTO.FirstName,
-                LastName = registerDTO.LastName,
-                Email = registerDTO.Email,
-                PasswordHash = PasswordHasher.HashPassword(registerDTO.Password),
-                Role = "Customer"
-            };
+            var user = _mapper.Map<User>(registerDTO);
+            user.PasswordHash = PasswordHasher.HashPassword(registerDTO.Password);
+            user.Role = "Customer";
 
             var registeredUser = await _userRepository.RegisterUser(user);
 
-            var userDTO = new UserDTO
-            {
-                Id = registeredUser.Id,
-                FirstName = registeredUser.FirstName,
-                LastName = registeredUser.LastName,
-                Email = registeredUser.Email,
-                Role = registeredUser.Role
-            };
+            var userDTO = _mapper.Map<UserDTO>(registeredUser);
 
             return Result<UserDTO>.SuccessResult(userDTO);
         }
@@ -57,14 +54,7 @@ namespace ECommerceAPI.Services
 
             var token = JwtHelper.GenerateToken(user, secretKey!, issuer!, audience!);
 
-            var userDTO = new UserDTO
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                Role = user.Role
-            };
+            var userDTO = _mapper.Map<UserDTO>(user);
 
             return Result<(string Token, UserDTO User)>.SuccessResult((token, userDTO));
         }
@@ -73,14 +63,7 @@ namespace ECommerceAPI.Services
         {
             var users =  await _userRepository.GetAllUsers();
 
-            return users.Select(u => new UserDTO
-            {
-                Id = u.Id,
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                Email = u.Email,
-                Role = u.Role
-            }).ToList();
+            return _mapper.Map<List<UserDTO>>(users);
         }
     }
 }

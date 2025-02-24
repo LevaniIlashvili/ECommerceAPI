@@ -1,4 +1,5 @@
-﻿using ECommerceAPI.DTOs;
+﻿using AutoMapper;
+using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using ECommerceAPI.Repositories;
@@ -9,26 +10,19 @@ namespace ECommerceAPI.Services
     {
         private readonly ICartRepository _cartRepository;
         private readonly IProductRepository _productRepository;
+        private readonly IMapper _mapper;
 
-        public CartService(ICartRepository cartRepository, IProductRepository productRepository)
+        public CartService(ICartRepository cartRepository, IProductRepository productRepository, IMapper mapper)
         {
             _cartRepository = cartRepository;
             _productRepository = productRepository;
+            _mapper = mapper;
         }
         public async Task<CartDTO> GetCartByUserId(int userId)
         {
             var cart = await _cartRepository.GetCartByUserId(userId);
 
-            return new CartDTO
-            {
-                UserId = userId,
-                CartItems = cart!.CartItems.Select(ci => new CartItemDTO
-                {
-                    Id = ci.Id,
-                    ProductId = ci.ProductId,
-                    Quantity = ci.Quantity
-                }).ToList()
-            };
+            return _mapper.Map<CartDTO>(cart);
         }
 
         public async Task<Result<CartItem>> AddToCart(int userId, int productId, int quantity)
