@@ -28,17 +28,7 @@ namespace ECommerceAPI.Controllers
                 };
             }
 
-            var (productDTOs, productCount) = result.Data;
-
-            var response = new
-            {
-                Products = productDTOs,
-                TotalCount = productCount,
-                TotalPages = (int)Math.Ceiling(productCount / (double)pageSize),
-                CurrentPage = pageNumber
-            };
-
-            return Ok(response);
+            return Ok(result.Data);
         }
 
         [HttpGet("{id:int}")]
