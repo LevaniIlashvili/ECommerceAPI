@@ -22,7 +22,7 @@ namespace ECommerceAPI.Services
             _cacheService = cacheService;
         }
 
-        public async Task<Result<PaginationResultDTO<ProductDTO>>> GetAllProductsAsync(string? category = null, int pageNumber = 1, int pageSize = 10)
+        public async Task<Result<PaginationResultDTO<ProductDTO>>> GetAllProductsAsync(CancellationToken cancellationToken,string? category = null, int pageNumber = 1, int pageSize = 10)
         {
             var cacheKey = $"products:{category}:{pageNumber}:{pageSize}";
             var cachedData = await _cacheService.GetFromCacheAsync<PaginationResultDTO<ProductDTO>>(cacheKey);
@@ -37,7 +37,7 @@ namespace ECommerceAPI.Services
                 return Result<PaginationResultDTO<ProductDTO>>.Failure("specified category doesn't exist", ErrorType.NotFound);
             }
 
-            var (products, productCount) = await _productRepository.GetProducts(category, pageNumber, pageSize);
+            var (products, productCount) = await _productRepository.GetProducts(cancellationToken ,category, pageNumber, pageSize);
             var productDTOs = _mapper.Map<List<ProductDTO>>(products);
 
             var paginationResultDTO = new PaginationResultDTO<ProductDTO>

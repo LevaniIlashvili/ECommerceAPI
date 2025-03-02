@@ -15,9 +15,9 @@ namespace ECommerceAPI.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<PaginationResultDTO<ProductDTO>>> GetProducts([FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<PaginationResultDTO<ProductDTO>>> GetProducts(CancellationToken cancellationToken, [FromQuery] string? category = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _productService.GetAllProductsAsync(category, pageNumber, pageSize);
+            var result = await _productService.GetAllProductsAsync(cancellationToken, category, pageNumber, pageSize);
 
             if (!result.Success)
             {

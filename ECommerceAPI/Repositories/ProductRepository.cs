@@ -1,6 +1,5 @@
 ﻿using ECommerceAPI.Data;
 using ECommerceAPI.DTOs;
-using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +14,7 @@ namespace ECommerceAPI.Repositories
             _context = context;
         }
 
-        public async Task<(IEnumerable<Product> Products, int TotalCount)> GetProducts(string? category = null, int pageNumber = 1, int pageSize = 10)
+        public async Task<(IEnumerable<Product> Products, int TotalCount)> GetProducts(CancellationToken cancellationToken, string? category = null, int pageNumber = 1, int pageSize = 10)
         {
             var query = _context.Products.AsQueryable();
 
@@ -24,13 +23,13 @@ namespace ECommerceAPI.Repositories
                 query = query.Where(p => p.Category != null && p.Category.Name == category);
             }
 
-            var productCount = await query.CountAsync();
+            var productCount = await query.CountAsync(cancellationToken);
 
             var products = await query
                                 .Skip((pageNumber - 1) * pageSize)
                                 .Take(pageSize)
                                 .Include(p => p.Category)
-                                .ToListAsync();
+                                .ToListAsync(cancellationToken);
 
             return (products, productCount);
         }
