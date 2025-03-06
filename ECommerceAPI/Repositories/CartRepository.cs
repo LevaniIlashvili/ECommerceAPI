@@ -49,6 +49,24 @@ namespace ECommerceAPI.Repositories
             return await _context.SaveChangesAsync() > 0;
         }
 
+        public async Task<bool> ClearCart(int userId)
+        {
+            var cart = await _context.Carts.FirstAsync(c => c.UserId == userId);
 
+            _context.CartItems.RemoveRange(cart.CartItems);
+
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> UpdateStockAfterOrder(List<CartItem> cartItems)
+        {
+            foreach (var item in cartItems)
+            {
+                var product = await _context.Products.FirstAsync(p => p.Id == item.ProductId);
+                product.Stock -= item.Quantity;
+            }
+
+            return await _context.SaveChangesAsync() > 0;
+        }
     }
 }
