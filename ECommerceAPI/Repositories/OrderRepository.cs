@@ -1,5 +1,4 @@
 ﻿using ECommerceAPI.Data;
-using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,10 +22,6 @@ namespace ECommerceAPI.Repositories
 
 
             _context.Orders.Add(order);
-
-            cart.CartItems.ForEach(ci => ci.Product.Stock -= ci.Quantity);
-
-            _context.CartItems.RemoveRange(cart.CartItems);
 
             await _context.SaveChangesAsync();
 
