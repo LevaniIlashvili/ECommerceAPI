@@ -1,9 +1,8 @@
-﻿using ECommerceAPI.Models;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace ECommerceAPI.DTOs
 {
-    public class AddOrderDTO
+    public class CheckoutDTO
     {
         [Required]
         public string ShippingAddress { get; set; } = string.Empty;
