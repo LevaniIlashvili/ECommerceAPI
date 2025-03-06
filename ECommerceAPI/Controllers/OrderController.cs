@@ -1,10 +1,8 @@
 ﻿using ECommerceAPI.DTOs;
 using ECommerceAPI.Helpers;
 using ECommerceAPI.Models;
-using ECommerceAPI.Repositories;
 using ECommerceAPI.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerceAPI.Controllers
@@ -18,25 +16,6 @@ namespace ECommerceAPI.Controllers
         public OrderController(IOrderService orderService)
         {
             _orderService = orderService;
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<OrderDTO>> PlaceOrder(AddOrderDTO dto)
-        {
-            var userId = HttpContext.GetAuthenticatedUserId();
-
-            var result = await _orderService.CreateOrder(userId, dto.ShippingAddress);
-
-            if (!result.Success)
-            {
-                return result.ErrorType switch
-                {
-                    ErrorType.BadRequest => BadRequest(new { Message = result.ErrorMessage }),
-                    _ => StatusCode(500, new { Message = "An unexpected error occurred." })
-                };
-            };
-
-            return Ok(result.Data);
         }
 
         [Authorize(Roles = "Admin")]
