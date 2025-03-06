@@ -11,12 +11,14 @@ namespace ECommerceAPI.Services
         private readonly IOrderRepository _orderRepository;
         private readonly ICartRepository _cartRepository;
         private readonly IMapper _mapper;
+        private readonly CacheService _cacheService;
 
-        public OrderService(IOrderRepository orderRepository, ICartRepository cartRepository, IMapper mapper)
+        public OrderService(IOrderRepository orderRepository, ICartRepository cartRepository, IMapper mapper, CacheService cacheService)
         {
             _orderRepository = orderRepository;
             _cartRepository = cartRepository;
             _mapper = mapper;
+            _cacheService = cacheService;
         }
 
         public async Task<Result<OrderDTO>> CreateOrder(int userId, string shippingAddress)
@@ -38,7 +40,7 @@ namespace ECommerceAPI.Services
                 UserId = userId,
                 TotalPrice = cart.CartItems.Sum(ci => ci.Product.Price * ci.Quantity),
                 OrderDate = DateTime.Now,
-                Status = OrderStatus.Pending,
+                Status = OrderStatus.Processing,
                 ShippingAddress = shippingAddress,
                 OrderItems = cart.CartItems.Select(ci => new OrderItem
                 {
@@ -49,6 +51,12 @@ namespace ECommerceAPI.Services
             };
 
             var addedOrder = await _orderRepository.CreateOrder(order);
+
+            await _cartRepository.UpdateStockAfterOrder(cart.CartItems);
+
+            await _cartRepository.ClearCart(userId);
+
+            await _cacheService.RemoveCacheByPrefixAsync("product");
 
             return Result<OrderDTO>.SuccessResult(_mapper.Map<OrderDTO>(addedOrder));
         }
